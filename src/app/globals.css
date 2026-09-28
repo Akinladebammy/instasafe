@@ -1,26 +1,228 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  color-scheme: light;
+  --canvas: #eff6f1;
+  --surface: #f3f3f1;
+  --surface-raised: #e9fbf9;
+  --surface-blue: #d3f8f3;
+  --surface-green: #dcefe3;
+  --surface-attention: #f0e0db;
+  --ink: #1a1c17;
+  --ink-muted: #4f5346;
+  --line: #ced0c8;
+  --brand: #168376;
+  --brand-strong: #0f574f;
+  --on-brand: #e9fbf9;
+  --focus: #1eae9e;
+  --shadow-ledger: 0 28px 80px rgba(7, 44, 39, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+    --canvas: #051f1c;
+    --surface: #072c27;
+    --surface-raised: #0f574f;
+    --surface-blue: #0f574f;
+    --surface-green: #102317;
+    --surface-attention: #24140f;
+    --ink: #e9fbf9;
+    --ink-muted: #bedac8;
+    --line: #168376;
+    --brand: #51e1d1;
+    --brand-strong: #7ce9dc;
+    --on-brand: #051f1c;
+    --focus: #a8f0e8;
+    --shadow-ledger: 0 28px 80px rgba(1, 12, 11, 0.34);
   }
 }
 
+@theme inline {
+  --color-blue-spruce-50: #e9fbf9;
+  --color-blue-spruce-100: #d3f8f3;
+  --color-blue-spruce-200: #a8f0e8;
+  --color-blue-spruce-300: #7ce9dc;
+  --color-blue-spruce-400: #51e1d1;
+  --color-blue-spruce-500: #25dac5;
+  --color-blue-spruce-600: #1eae9e;
+  --color-blue-spruce-700: #168376;
+  --color-blue-spruce-800: #0f574f;
+  --color-blue-spruce-900: #072c27;
+  --color-blue-spruce-950: #051f1c;
+
+  --color-shamrock-50: #eef7f1;
+  --color-shamrock-100: #dcefe3;
+  --color-shamrock-200: #b9dfc7;
+  --color-shamrock-300: #96cfab;
+  --color-shamrock-400: #73bf8f;
+  --color-shamrock-500: #50af73;
+  --color-shamrock-600: #408c5c;
+  --color-shamrock-700: #306945;
+  --color-shamrock-800: #20462e;
+  --color-shamrock-900: #102317;
+  --color-shamrock-950: #0b1810;
+
+  --color-muted-teal-50: #eff6f1;
+  --color-muted-teal-100: #deede3;
+  --color-muted-teal-200: #bedac8;
+  --color-muted-teal-300: #9dc8ac;
+  --color-muted-teal-400: #7cb690;
+  --color-muted-teal-500: #5ca375;
+  --color-muted-teal-600: #49835d;
+  --color-muted-teal-700: #376246;
+  --color-muted-teal-800: #25412f;
+  --color-muted-teal-900: #122117;
+  --color-muted-teal-950: #0d1710;
+
+  --color-ash-grey-50: #f3f3f1;
+  --color-ash-grey-100: #e6e8e3;
+  --color-ash-grey-200: #ced0c8;
+  --color-ash-grey-300: #b5b9ac;
+  --color-ash-grey-400: #9ca191;
+  --color-ash-grey-500: #848a75;
+  --color-ash-grey-600: #696e5e;
+  --color-ash-grey-700: #4f5346;
+  --color-ash-grey-800: #35372f;
+  --color-ash-grey-900: #1a1c17;
+  --color-ash-grey-950: #121310;
+
+  --color-cinnamon-wood-50: #f8f0ed;
+  --color-cinnamon-wood-100: #f0e0db;
+  --color-cinnamon-wood-200: #e1c1b7;
+  --color-cinnamon-wood-300: #d3a292;
+  --color-cinnamon-wood-400: #c4846e;
+  --color-cinnamon-wood-500: #b5654a;
+  --color-cinnamon-wood-600: #91513b;
+  --color-cinnamon-wood-700: #6d3c2c;
+  --color-cinnamon-wood-800: #48281e;
+  --color-cinnamon-wood-900: #24140f;
+  --color-cinnamon-wood-950: #190e0a;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-blue: var(--surface-blue);
+  --color-surface-green: var(--surface-green);
+  --color-surface-attention: var(--surface-attention);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-on-brand: var(--on-brand);
+  --color-focus: var(--focus);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --shadow-ledger: var(--shadow-ledger);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--canvas);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Geist ships a broken naira sign: U+20A6 measures ~0.2em instead of ~0.6em, so
+ * "₦" visually collides with the first digit of an amount. Route money through a
+ * system stack that carries a correct glyph rather than dropping the symbol.
+ */
+.money {
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--blue-spruce-200);
+  color: var(--blue-spruce-950);
+}
+
+.ledger-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--line) 36%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--line) 36%, transparent) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+.hairline-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--line) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--line) 26%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes trace-line {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  100% {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+.trace-line {
+  animation: trace-line 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
