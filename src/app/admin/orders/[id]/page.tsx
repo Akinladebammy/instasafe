@@ -7,6 +7,7 @@ import {
   adminForceReleaseAction,
   adminRefundAction,
   adminResolveDisputeAction,
+  adminRetryPayoutAction,
 } from "@/app/admin/actions";
 import { ActionForm } from "@/components/dashboard/action-form";
 import { ConfirmSubmit } from "@/components/dashboard/confirm-submit";
@@ -19,7 +20,11 @@ import {
 import { StatusPill, Tag } from "@/components/dashboard/status-pill";
 import { AdminApiError, getAdminOrder, getAdminToken } from "@/lib/admin-api";
 import { formatCountdown, formatDateTime, formatPhone } from "@/lib/money";
-import { canRefund, isDigitalFulfilment } from "@/lib/order-status";
+import {
+  canRefund,
+  fulfillmentLabel,
+  isSelfDelivery,
+} from "@/lib/order-status";
 import { decodeOrder, orderNumber } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -63,7 +68,7 @@ export default async function AdminOrderPage({
   if (!raw) notFound();
 
   const order = decodeOrder(raw);
-  const digital = isDigitalFulfilment(order.fulfillmentKey);
+  const selfDelivery = isSelfDelivery(order.fulfillmentKey);
   const refundable = canRefund(order.statusKey);
   const disputed = order.statusKey === "Disputed";
   // force-release pays the vendor from Held, Delivered or Disputed; anything
@@ -72,6 +77,10 @@ export default async function AdminOrderPage({
   const forceReleasable = ["Held", "Delivered", "Disputed"].includes(
     order.statusKey,
   );
+  // retry-payout only applies to a `Released` order with no transfer reference —
+  // the signature of a payout that was marked done but never actually landed.
+  const retryable =
+    order.statusKey === "Released" && !order.transferReference?.trim();
 
   return (
     <div className="space-y-8">
@@ -89,7 +98,7 @@ export default async function AdminOrderPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill status={order.statusKey} />
-            <Tag>{digital ? "Digital" : "Dispatch"}</Tag>
+            <Tag>{fulfillmentLabel(order.fulfillmentKey)}</Tag>
           </div>
         </div>
       </div>
@@ -183,6 +192,30 @@ export default async function AdminOrderPage({
                 )}
               </div>
 
+              {retryable ? (
+                <div className="border-t border-line pt-5">
+                  <p className="text-sm font-semibold text-ink">
+                    Payout never completed
+                  </p>
+                  <p className="mt-1 max-w-xl text-sm leading-6 text-ink-muted">
+                    This order is marked released but carries no transfer
+                    reference, so the vendor was likely never paid. Retrying
+                    re-runs the transfer. It does not re-send any buyer or vendor
+                    notification.
+                  </p>
+                  <div className="mt-4">
+                    <ConfirmSubmit
+                      action={adminRetryPayoutAction}
+                      hidden={{ orderId: order.id }}
+                      label="Retry vendor payout"
+                      confirmLabel="Yes, retry the payout"
+                      question="Re-run the vendor transfer for this order? If a previous attempt reported an unknown outcome, check Paystack for this order first — a blind retry can pay the vendor twice."
+                      pendingLabel="Retrying…"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
               {forceReleasable ? (
                 <div className="border-t border-line pt-5">
                   <ActionForm
@@ -241,7 +274,7 @@ export default async function AdminOrderPage({
                   </span>
                 </li>
               ))}
-              {digital ? null : (
+              {selfDelivery ? null : (
                 <li className="flex items-baseline justify-between gap-3 px-5 py-3">
                   <span className="text-sm text-ink">Delivery fee</span>
                   <span className="text-sm tabular-nums text-ink-muted">

@@ -40,19 +40,23 @@ function isStatus(value: string | undefined): value is OrderStatusKey {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const token = await getAdminToken();
   if (!token) redirect("/login");
 
   const status = isStatus(params.status) ? params.status : "all";
+  const q = params.q?.trim() ?? "";
   const page = Math.max(1, Number(params.page) || 1);
 
-  // The status filter is applied by the backend, not here, so a filtered view
-  // pages through the real result set rather than one fetched window.
+  // Both filters are applied by the backend, not here, so a filtered view pages
+  // through the real result set rather than one fetched window. `q` matches the
+  // order number or the Paystack reference, which is what a support agent has in
+  // front of them when a buyer reads a number down the phone.
   const raw = await listAdminOrders(token, {
     status: status === "all" ? undefined : status,
+    q: q || undefined,
     page,
     pageSize: PAGE_SIZE + 1,
   });
@@ -76,10 +80,44 @@ export default async function AdminOrdersPage({
         </p>
       </div>
 
+      <form action="/admin/orders" method="get" className="flex flex-wrap items-end gap-3">
+        {status !== "all" ? (
+          <input type="hidden" name="status" value={status} />
+        ) : null}
+        <div className="min-w-0 flex-1 sm:max-w-md">
+          <label htmlFor="q" className="block text-sm font-semibold text-ink">
+            Find an order
+          </label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            defaultValue={q}
+            placeholder="IS-8K4N2Q or a payment reference"
+            className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 font-mono text-sm text-ink placeholder:font-sans placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          />
+        </div>
+        <button
+          type="submit"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-spruce-800 px-4 text-sm font-semibold text-blue-spruce-50 transition-colors hover:bg-blue-spruce-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          Search
+        </button>
+        {q ? (
+          <Link
+            href="/admin/orders"
+            className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
+            Clear
+          </Link>
+        ) : null}
+      </form>
+
       <FilterChips
         basePath="/admin/orders"
         param="status"
         active={status}
+        extraParams={q ? { q } : {}}
         options={[
           { key: "all", label: "All" },
           ...STATUSES.map((key) => ({ key, label: statusLabel(key) })),
@@ -104,7 +142,11 @@ export default async function AdminOrdersPage({
         {orders.length === 0 ? (
           <EmptyState
             title="No orders match"
-            description="Nothing on the platform is in that state right now."
+            description={
+              q
+                ? `Nothing matches "${q}". Check the order number or payment reference.`
+                : "Nothing on the platform is in that state right now."
+            }
           />
         ) : (
           <ul className="divide-y divide-line">
@@ -146,7 +188,7 @@ export default async function AdminOrdersPage({
           basePath="/admin/orders"
           page={page}
           hasNext={hasNext}
-          extraParams={status === "all" ? {} : { status }}
+          extraParams={{ ...(status === "all" ? {} : { status }), ...(q ? { q } : {}) }}
         />
       </SectionCard>
 

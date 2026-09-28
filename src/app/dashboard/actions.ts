@@ -128,7 +128,21 @@ export async function createOrderAction(
   const customerPhone = text("customerPhone");
   const deliveryAddress = text("deliveryAddress");
   const buyerEmail = text("buyerEmail");
-  const fulfillment: 0 | 1 = text("fulfillment") === "1" ? 1 : 0;
+  // `fulfillment` is a number the vendor picks, and only 0 and 2 are accepted:
+  // 1 (Digital) is disabled server-side (`400 fulfillment.unsupported`). A `1`
+  // reaching here means a stale client, so refuse it rather than let the API
+  // reject it with a code the vendor cannot act on.
+  const fulfillmentRaw = text("fulfillment");
+  if (fulfillmentRaw === "1") {
+    return {
+      ok: false,
+      message:
+        "Digital orders are no longer available. Choose a rider, or pick that you deliver it yourself.",
+    };
+  }
+  const fulfillment: 0 | 2 = fulfillmentRaw === "2" ? 2 : 0;
+  const isDispatch = fulfillment === 0;
+  const isSelfDelivery = fulfillment === 2;
   const deliveryFeeNgn = Number(text("deliveryFeeNgn") || 0);
   const driverPhone = text("driverPhone");
   const driverAccountNumber = text("driverAccountNumber");
@@ -143,29 +157,56 @@ export async function createOrderAction(
       message: "Enter a real buyer email. Receipts and status mails go there.",
     };
   }
-  if (fulfillment === 1 && deliveryFeeNgn !== 0) {
-    return { ok: false, message: "Digital orders cannot carry a delivery fee." };
-  }
-  if (fulfillment === 0 && !deliveryAddress) {
-    return { ok: false, message: "Dispatch orders need a delivery address." };
-  }
   if (!Number.isFinite(deliveryFeeNgn) || deliveryFeeNgn < 0) {
     return { ok: false, message: "Delivery fee must be zero or more." };
   }
+  if (!deliveryAddress) {
+    return {
+      ok: false,
+      message: "Enter the address the order is going to.",
+    };
+  }
+  // A self-delivery order has no rider, so it must carry no rider fee. Whatever
+  // the vendor charges the buyer for delivery belongs in the order total.
+  if (isSelfDelivery && deliveryFeeNgn !== 0) {
+    return {
+      ok: false,
+      message:
+        "You are delivering this yourself, so there is no rider fee. Put any delivery charge into the order total instead.",
+    };
+  }
 
-  // A dispatch order goes to a rider, and riders hold no stored bank details —
-  // the API needs the rider's account and bank on every order, so all three
-  // fields are validated together.
+  // Dispatch and self-delivery are mutually exclusive server-side:
+  //   fulfillment 0 with no driverPhone -> 400 fulfillment.dispatch_needs_rider
+  //   fulfillment 2 with a driverPhone  -> 400 fulfillment.selfdelivery_no_rider
+  // Riders hold no stored bank details, so on the rider path all three go on
+  // this order; on the self-delivery path none of them may.
   const driverFields = [
     driverPhone,
     driverAccountNumber,
     driverBankCode,
   ].filter(Boolean).length;
-  if (fulfillment === 0 && driverFields > 0 && driverFields < 3) {
+
+  if (isDispatch) {
+    if (driverFields === 0) {
+      return {
+        ok: false,
+        message:
+          "A rider order needs a rider. Add the rider's phone, account number and bank.",
+      };
+    }
+    if (driverFields < 3) {
+      return {
+        ok: false,
+        message:
+          "Give the rider's phone, account number and bank together — riders have no saved payout details.",
+      };
+    }
+  } else if (driverFields > 0) {
     return {
       ok: false,
       message:
-        "Give the rider's phone, account number and bank together — riders have no saved payout details.",
+        "You are delivering this yourself, so there is no rider to pay. Clear the rider details.",
     };
   }
 

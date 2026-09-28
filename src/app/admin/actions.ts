@@ -7,6 +7,7 @@ import {
   adminForceRelease,
   adminRefundOrder,
   adminResolveDispute,
+  adminRetryPayout,
   AdminApiError,
   getAdminToken,
   setDispatcherActive,
@@ -162,4 +163,25 @@ export async function adminForceReleaseAction(
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/orders", "layout");
   return { ok: true, message: "Funds force-released to the vendor." };
+}
+
+export async function adminRetryPayoutAction(
+  _prev: AdminResult | null,
+  formData: FormData,
+): Promise<AdminResult> {
+  const id = field(formData, "orderId");
+  if (!id) return { ok: false, message: "Missing order reference." };
+
+  try {
+    await withAdmin((token) => adminRetryPayout(token, id));
+  } catch (error) {
+    return failure(error);
+  }
+
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/orders", "layout");
+  return {
+    ok: true,
+    message: "Payout retried. The backend will not re-send buyer or vendor messages.",
+  };
 }

@@ -27,7 +27,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
     null,
   );
   const [items, setItems] = useState<Item[]>([{ ...EMPTY }]);
-  const [fulfillment, setFulfillment] = useState<"0" | "1">("0");
+  const [fulfillment, setFulfillment] = useState<"0" | "2">("0");
   const [deliveryFee, setDeliveryFee] = useState("");
 
   const goodsKobo = Math.round(
@@ -36,7 +36,8 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
       0,
     ) * 1,
   );
-  const feeKobo = fulfillment === "1" ? 0 : Math.round(naira(deliveryFee) * 100);
+  // Self-delivery has no rider, so there is no rider fee on the order.
+  const feeKobo = fulfillment === "2" ? 0 : Math.round(naira(deliveryFee) * 100);
   const totalKobo = goodsKobo + feeKobo;
 
   const formatNaira = (kobo: number) =>
@@ -204,12 +205,26 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
         </h2>
         <div className="space-y-5 px-5 py-5">
           <fieldset>
-            <legend className="text-sm font-semibold text-ink">How is it delivered?</legend>
+            <legend className="text-sm font-semibold text-ink">
+              How does it reach the buyer?
+            </legend>
+            <p className="mt-1 text-sm leading-6 text-ink-muted">
+              This decides who confirms the handover, so it decides when the
+              money moves.
+            </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  { value: "0", title: "Dispatch", body: "Rider delivers and confirms with the buyer's code." },
-                  { value: "1", title: "Digital", body: "Buyer gets a link and releases funds with a Satisfied button." },
+                  {
+                    value: "0",
+                    title: "A rider delivers",
+                    body: "A rider carries it and confirms with the buyer's code. The fee below is paid to them on handover.",
+                  },
+                  {
+                    value: "2",
+                    title: "I deliver it myself",
+                    body: "You hand it over in person. The buyer releases the payment from their tracking page.",
+                  },
                 ] as const
               ).map((option) => (
                 <label
@@ -228,7 +243,8 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
                     checked={fulfillment === option.value}
                     onChange={() => {
                       setFulfillment(option.value);
-                      if (option.value === "1") setDeliveryFee("0");
+                      // Self-delivery has no rider, so there is no rider fee.
+                      if (option.value === "2") setDeliveryFee("0");
                     }}
                     className="mt-1 h-4 w-4 shrink-0 accent-blue-spruce-700"
                   />
@@ -246,9 +262,13 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
           </fieldset>
 
           <Field
-            label="Delivery fee (₦)"
+            label={fulfillment === "2" ? "Delivery charge (₦)" : "Rider fee (₦)"}
             htmlFor="deliveryFeeNgn"
-            hint="Digital orders must be 0."
+            hint={
+              fulfillment === "2"
+                ? "You deliver this yourself, so there is no rider fee — the amount must be 0. Whatever you charge the buyer for delivery goes into the order total."
+                : "Paid to the rider the moment they confirm the handover."
+            }
             className="sm:max-w-xs"
           >
             <input
@@ -258,8 +278,8 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
               inputMode="decimal"
               min={0}
               step="0.01"
-              value={fulfillment === "1" ? "0" : deliveryFee}
-              disabled={fulfillment === "1"}
+              value={fulfillment === "2" ? "0" : deliveryFee}
+              disabled={fulfillment === "2"}
               onChange={(event) => setDeliveryFee(event.target.value)}
               placeholder="5000…"
               className={cn(inputClass, "tabular-nums")}
@@ -269,8 +289,9 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
           {fulfillment === "0" ? (
             <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-3">
               <p className="text-xs leading-5 text-ink-muted sm:col-span-3">
-                Optional. Riders hold no saved payout details, so if you name a
-                rider, give their phone, account and bank together.
+                Required on a rider order. Riders hold no saved payout details, so
+                all three go on this order — the backend pays the account below the
+                moment the rider confirms the handover.
               </p>
               <Field
                 label="Rider phone"
@@ -283,6 +304,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
                   type="tel"
                   inputMode="tel"
                   autoComplete="off"
+                  required
                   maxLength={24}
                   placeholder="0805 555 6666…"
                   className={cn(inputClass, "font-mono")}
@@ -295,6 +317,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
+                  required
                   maxLength={20}
                   placeholder="0123456789"
                   className={cn(inputClass, "font-mono")}
@@ -305,6 +328,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
                   <select
                     id="driverBankCode"
                     name="driverBankCode"
+                    required
                     defaultValue=""
                     className={cn(inputClass, "appearance-none")}
                   >
@@ -322,6 +346,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
+                    required
                     maxLength={12}
                     placeholder="058"
                     className={cn(inputClass, "font-mono")}
@@ -342,7 +367,9 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
         </div>
         <p className="mt-1.5 text-xs leading-5 text-ink-muted">
           {formatNaira(goodsKobo)} goods
-          {fulfillment === "0" ? ` + ${formatNaira(feeKobo)} delivery` : " · digital delivery"}
+          {fulfillment === "0"
+            ? ` + ${formatNaira(feeKobo)} delivery`
+            : " · you deliver it yourself"}
           . Held in escrow until the order settles.
         </p>
 

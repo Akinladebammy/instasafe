@@ -194,7 +194,8 @@ export type CreateOrderInput = {
   customerPhone: string;
   deliveryAddress: string;
   buyerEmail: string;
-  fulfillment: 0 | 1;
+  /** 0 = Dispatch (rider), 2 = SelfDelivery. 1 (Digital) is disabled server-side. */
+  fulfillment: 0 | 2;
   deliveryFeeNgn: number;
   driverPhone?: string | null;
   driverAccountNumber?: string | null;

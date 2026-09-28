@@ -38,7 +38,8 @@ Open [http://localhost:3001](http://localhost:3001).
 - `/dashboard/profile` — business name, WhatsApp number, pause/resume selling
 - `/dispatch` — rider portal: deliveries assigned to your number
 - `/login?as=rider` — rider sign-in (phone + WhatsApp code, no password); `/dispatch/login` deep-links the same screen
-- `/track` — public order tracking for buyers, keyed by `IS-XXXXXX` number, order id or payment reference
+- `/track` — public order tracking for buyers
+- `/track/[orderNumber]` — **the route the backend links to.** The payment-link WhatsApp, the bank-transfer message, the status emails and the dispatcher's assignment message all point at `/track/IS-8K4N2Q`, so it is contract, not a nicety. `/track?ref=` is kept for links minted earlier.
 
 Super-admin console (`[Authorize(Roles="admin")]`, reached by signing in with
 the admin email on the same `/login` form):
@@ -165,10 +166,10 @@ unauthenticated. Contact details are masked because the link is shareable.
 | Freeze funds | `POST /api/orders/{id}/dispute` |
 | Release (no rider assigned) | `POST /api/orders/{id}/verify-otp` |
 
-Which actions appear follows the guide: satisfaction only for digital goods,
-dispute only while money is in escrow (`Held`/`Delivered`), and the OTP box is
-**hidden when a rider is assigned**, because the guide requires rider-fulfilment
-orders to be confirmed in the dispatch portal.
+Which actions appear is a single server-rendered switch, `TrackActions`, driven
+by the gate table in [Money release](#money-release-and-the-buyers-one-button).
+A `Delivered` order shows the timeline, the `releaseDueAt` countdown and Dispute
+— never a "Verify code" panel.
 
 ### Contract details worth knowing
 
@@ -179,11 +180,11 @@ orders to be confirmed in the dispatch portal.
   `instasafe-server.ts` folds the PascalCase keys into the canonical shape at the
   parse boundary — without that, a PascalCase `{"Success": false}` parses to
   `success: undefined` and a 200 response reads as a success.
-- **Those three endpoints are currently broken server-side.** With a well-formed
-  GUID in the path they all answer `400 "'Order Id' must not be empty."`, which
-  means the route parameter is not being bound. The UI is built to the documented
-  contract and reports this specific failure plainly rather than showing raw
-  text. Worth raising with whoever owns that controller.
+- **That binding bug is fixed.** `POST /api/orders/{id}/verify-otp` and
+  `/dispute` used to answer `400 "'Order Id' must not be empty."` with a
+  well-formed GUID. Verified against production: a bogus id now answers
+  `400 "Order not found."` and a real one reaches business logic. The special-case
+  branch in `track-api.ts` for that message is gone.
 - **Enums arrive as integers.** `OrderStatus` is `0 Draft, 1 AwaitingPayment,
   2 Held, 3 Released, 4 Refunded, 5 Disputed, 6 Cancelled, 7 Delivered`.
   `Delivered` is 7 because it was appended to the enum after the original set
@@ -203,6 +204,93 @@ orders to be confirmed in the dispatch portal.
 - **`POST /api/dispatch/request-code` does not validate Nigerian phone format**,
   unlike the vendor endpoints — it accepted `123`. The client validates anyway so
   riders get a clear error instead of junk dispatcher rows.
+
+## Order shapes: three DTOs, chosen per endpoint
+
+The API stopped returning one `OrderDto` everywhere. Each surface now gets a
+deliberately minimal shape, and the frontend types match:
+
+| DTO | Used by | Auth | Notably missing |
+| --- | --- | --- | --- |
+| `OrderDto` | vendor dashboard, admin console | vendor/admin JWT | — (full record) |
+| `PublicOrderDto` | public track page, guest actions | **none** | buyer contact, every Paystack/transfer/refund reference, payment URL, escrow account |
+| `DispatchOrderDto` | rider portal | driver JWT | `amountKobo`, vendor contact, all references |
+
+`PublicOrder` and `DispatchOrder` in `src/lib/types.ts` are **separate types**, not
+`Order` aliases. That is the point: the track page *cannot* read `customerPhone`
+or `paystackReference` because the compiler rejects it. An alias would have
+silently rendered `undefined` instead, and the bug would only show up in
+production. When the DTOs changed, the compiler found all 9 call sites at once.
+
+### Fulfilment: two types, and the vendor picks
+
+`fulfillment` is a number and the enum has a deliberate gap:
+
+| Value | Name | Meaning |
+| --- | --- | --- |
+| `0` | `Dispatch` | a **rider** carries it. `driverPhone` + rider bank details **required**. |
+| `2` | `SelfDelivery` | the **vendor** hands it over. `driverPhone` must be **absent**. |
+| `1` | `Digital` | **disabled** — `400 fulfillment.unsupported` |
+
+Because fulfilment is explicit, `PublicOrderDto` needs no `hasDriver` flag:
+`fulfillment` alone tells the track page which flow it is in. That resolved a real
+blocker — the previous contract's own predicate was
+`status === "Held" && (isDigital || !driverPhone)`, which referenced a field the
+public DTO does not send and therefore could not be evaluated client-side.
+
+`createOrderAction` enforces the two rules the API would otherwise reject with
+opaque codes:
+
+- Dispatch with no driver details → *"A rider order needs a rider."*
+- Self-delivery with any driver details → *"You are delivering this yourself, so
+  there is no rider to pay."*
+- Self-delivery with a non-zero fee → the fee must be 0; whatever the vendor
+  charges for delivery goes in the order total.
+
+### Money release, and the buyer's one button
+
+| `fulfillment` | Who releases | How |
+| --- | --- | --- |
+| `0` Dispatch | the **rider** | `POST /api/dispatch/orders/{id}/confirm` → `Delivered` |
+| `2` SelfDelivery | the **buyer** | `POST /api/orders/{id}/verify-otp` → `Released` |
+
+`confirm-satisfaction` was Digital-only and Digital is disabled, so it can never
+succeed on a new order. It is **not implemented** — the buyer's single release
+action is `verify-otp`.
+
+The track page renders exactly one release control, gated to match the API's
+state table (verified by running all ten status × fulfilment combinations against
+the doc):
+
+| State | Track page shows |
+| --- | --- |
+| `Held` + SelfDelivery | Verify code + Dispute |
+| `Held` + Dispatch | "A rider is handling this" + Dispute |
+| `Delivered` (either) | `releaseDueAt` countdown + Dispute |
+| Released / Refunded / Disputed / Cancelled | timeline only |
+
+Two traps this avoids, both `409` on click if you get them wrong: `verify-otp` is
+`Held`-only (not `Held`/`Delivered`), and it is SelfDelivery-only (a rider order
+is released by its rider). A `409` is mapped to plain English rather than the raw
+API string, because the raw text describes the internal state machine and means
+our gate was wrong.
+
+### The rider portal is money-blind by design
+
+`DispatchOrderDto` has no `amountKobo` — a rider never handles the order value.
+The screens therefore quote only `deliveryFeeKobo`, which the API defines as
+**the rider's own payout**, paid on confirmation. What used to read "Goods value
+₦45,000" now reads "Your fee ₦500", which is the number that actually concerns
+them.
+
+### The order number is a credential
+
+`/track/{orderNumber}` is anonymous, and the order number is the only credential
+(6 chars from a 30-char alphabet via CSPRNG — not guessable, but a bearer token).
+So that route sets `referrerPolicy: "no-referrer"` and `noindex`, and nothing on
+the page loads from or links to a third party. An unknown number returns a real
+`404` via a route-scoped `not-found.tsx`, so a client or cache knows the order
+does not exist while the buyer still gets a readable page.
 
 ### The `IS-XXXXXX` order number
 
@@ -227,8 +315,9 @@ from a WhatsApp bubble.
 ### Driver payout details are per order
 
 Riders hold no stored bank details, so the create form asks for the rider's
-phone, account number and bank **on every dispatch order**. Partial input is
-rejected with an explanation rather than silently sent and bounced by the API:
+phone, account number and bank **on every Dispatch order** — all three, and none
+of them on a Self-delivery order. Partial input is rejected with an explanation
+rather than silently sent and bounced by the API:
 
 > Give the rider's phone, account number and bank together — riders have no saved payout details.
 
@@ -269,7 +358,7 @@ Endpoint coverage — all 18 `/api/admin/*` routes are used:
 | --- | --- |
 | Overview | `stats`, `disputes`, `outbox`, `webhooks` |
 | Disputes | `disputes`, `orders/{id}/resolve-dispute` |
-| Orders | `orders`, `orders/{id}`, `orders/{id}/refund`, `/resolve-dispute`, `/force-release` |
+| Orders | `orders?status=&q=`, `orders/{id}`, `orders/{id}/refund`, `/resolve-dispute`, `/force-release`, `/retry-payout` |
 | Vendors | `vendors?q=`, `vendors/{id}/deactivate|reactivate`, `vendors/{id}/phone` |
 | Riders | `dispatchers`, `dispatchers/{id}/deactivate|reactivate` |
 | Messages | `chats?phone=&from=&to=` |
@@ -402,6 +491,20 @@ The `IS-XXXXXX` identifier and the per-order driver-bank rule were verified the
 same way: order create accepted all three rider fields and was rejected with an
 explanation when only some were given, and the tracker resolved the number in
 both upper and lower case.
+
+The three-DTO change, the fulfilment enum and `/track/{orderNumber}` were verified
+against **production**, not a mock:
+
+- `/track/IS-SVPZHY` → 200 with the full tracker; `/track/is-svpzhy` → 200
+  (case-insensitive); `/track/IS-ZZZZZZ` → **404** with the friendly page.
+- A live `Delivered` + `Dispatch` order renders the timeline, countdown and
+  Dispute, and **no** verify panel — the exact case that used to offer a button
+  guaranteed to `409`.
+- `GET /api/orders/by-reference/IS-SVPZHY` confirmed live that all 11 removed
+  fields are genuinely absent, not merely undocumented.
+- `GET /api/payments/banks` now returns 98 rows / 98 unique codes (was 1440/282).
+- All ten status × fulfilment gate combinations were executed against the doc's
+  state table and match.
 
 ## Design notes
 

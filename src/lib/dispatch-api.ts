@@ -9,7 +9,7 @@ import {
   requestToInstaSafe,
   type ApiEnvelope,
 } from "./instasafe-server";
-import type { Order } from "./types";
+import type { DispatchOrder } from "./types";
 
 export type Dispatcher = {
   id: string;
@@ -120,7 +120,7 @@ export async function verifyDispatchCode(phone: string, code: string) {
 }
 
 export type AssignedPage = {
-  orders: Order[];
+  orders: DispatchOrder[];
   totalCount: number | null;
   page: number;
   pageSize: number;
@@ -143,7 +143,7 @@ export async function listAssigned(
     pageSize: String(pageSize),
   });
 
-  const data = await call<Order[]>(`/api/dispatch/assigned?${query.toString()}`, {
+  const data = await call<DispatchOrder[]>(`/api/dispatch/assigned?${query.toString()}`, {
     token,
   });
   const orders = data ?? [];
@@ -172,7 +172,7 @@ export async function confirmDelivery(
 ) {
   if (!token) throw new DispatchApiError("Sign in to confirm a delivery.", 401);
 
-  return call<Order>(
+  return call<DispatchOrder>(
     `/api/dispatch/orders/${encodeURIComponent(orderId)}/confirm`,
     {
       token,

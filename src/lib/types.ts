@@ -64,6 +64,58 @@ export type TimelineEvent = {
   at?: string | null;
 };
 
+/**
+ * `PublicOrderDto` — what `GET /api/orders/by-reference/{ref}` and the guest
+ * actions actually return.
+ *
+ * This is a separate type on purpose. The public track endpoints are anonymous
+ * and the order number is the only credential, so the backend deliberately drops
+ * buyer contact details, every Paystack/transfer/refund reference, the payment
+ * auth URL and the escrow virtual account. Typing it as its own shape means the
+ * track page *cannot* read a field the API no longer sends — it fails to compile
+ * instead of silently rendering `undefined` or, worse, quietly showing nothing.
+ */
+export type PublicOrder = {
+  id: string;
+  orderNumber?: string | null;
+  status?: unknown;
+  fulfillment?: unknown;
+  amountKobo?: number | null;
+  deliveryFeeKobo?: number | null;
+  currency?: string | null;
+  customerName?: string | null;
+  deliveryAddress?: string | null;
+  items?: OrderItem[] | null;
+  heldAt?: string | null;
+  deliveredAt?: string | null;
+  releaseDueAt?: string | null;
+  releasedAt?: string | null;
+  disputeReason?: string | null;
+};
+
+/**
+ * `DispatchOrderDto` — the rider portal's view.
+ *
+ * Notably there is no `amountKobo`: a rider never handles the order value, and
+ * `deliveryFeeKobo` is their own payout. So a rider screen must never quote the
+ * buyer a total.
+ */
+export type DispatchOrder = {
+  id: string;
+  orderNumber?: string | null;
+  status?: unknown;
+  fulfillment?: unknown;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  deliveryAddress?: string | null;
+  deliveryFeeKobo?: number | null;
+  currency?: string | null;
+  items?: OrderItem[] | null;
+  driverPhone?: string | null;
+  deliveredAt?: string | null;
+  releaseDueAt?: string | null;
+};
+
 export type OrderTimeline = {
   orderId?: string | null;
   reference?: string | null;
@@ -101,6 +153,41 @@ export function decodeOrders(orders: Order[] | null | undefined) {
   return (orders ?? []).map(decodeOrder);
 }
 
+export type DecodedPublicOrder = PublicOrder & {
+  statusKey: OrderStatusKey;
+  fulfillmentKey: FulfillmentKey;
+  /** amount + delivery fee, in kobo. This is what the buyer pays. */
+  totalKobo: number;
+};
+
+export function decodePublicOrder(order: PublicOrder): DecodedPublicOrder {
+  const amountKobo = order.amountKobo ?? 0;
+  const deliveryFeeKobo = order.deliveryFeeKobo ?? 0;
+  return {
+    ...order,
+    statusKey: toStatusKey(order.status),
+    fulfillmentKey: toFulfillmentKey(order.fulfillment),
+    totalKobo: amountKobo + deliveryFeeKobo,
+  };
+}
+
+export type DecodedDispatchOrder = DispatchOrder & {
+  statusKey: OrderStatusKey;
+  fulfillmentKey: FulfillmentKey;
+};
+
+export function decodeDispatchOrder(order: DispatchOrder): DecodedDispatchOrder {
+  return {
+    ...order,
+    statusKey: toStatusKey(order.status),
+    fulfillmentKey: toFulfillmentKey(order.fulfillment),
+  };
+}
+
+export function decodeDispatchOrders(orders: DispatchOrder[] | null | undefined) {
+  return (orders ?? []).map(decodeDispatchOrder);
+}
+
 /**
  * The identifier to show a person.
  *
@@ -112,6 +199,14 @@ export function orderNumber(
   order: Pick<Order, "orderNumber" | "paystackReference" | "id">,
 ) {
   return order.orderNumber?.trim() || order.paystackReference?.trim() || order.id;
+}
+
+/**
+ * Public-side variant. `PublicOrderDto` carries no Paystack reference, so this is
+ * the order number or the id — nothing to fall back through.
+ */
+export function publicOrderNumber(order: Pick<PublicOrder, "orderNumber" | "id">) {
+  return order.orderNumber?.trim() || order.id;
 }
 
 /** Short form for dense lists. */

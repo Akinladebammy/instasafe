@@ -2,12 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  confirmSatisfaction,
-  raiseDispute,
-  TrackApiError,
-  verifyOrderOtp,
-} from "@/lib/track-api";
+import { raiseDispute, TrackApiError, verifyOrderOtp } from "@/lib/track-api";
 
 export type TrackResult = { ok: true; message: string } | { ok: false; message: string };
 
@@ -37,20 +32,12 @@ export async function trackAction(
 
   const done = (message: string): TrackResult => {
     revalidatePath("/track");
-    if (reference) revalidatePath(`/track?ref=${encodeURIComponent(reference)}`);
+    if (reference) {
+      revalidatePath(`/track?ref=${encodeURIComponent(reference)}`);
+      revalidatePath(`/track/${encodeURIComponent(reference)}`);
+    }
     return { ok: true, message };
   };
-
-  if (intent === "satisfy") {
-    // Digital goods: the buyer releases their own money. The guide notes these
-    // guest endpoints take no OTP — the reference is the credential.
-    try {
-      await confirmSatisfaction(orderId);
-    } catch (error) {
-      return failure(error);
-    }
-    return done("Thanks — your funds have been released to the vendor.");
-  }
 
   if (intent === "dispute") {
     const reason = String(formData.get("reason") ?? "").trim();

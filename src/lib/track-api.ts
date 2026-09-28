@@ -6,12 +6,15 @@ import {
   requestToInstaSafe,
   type ApiEnvelope,
 } from "./instasafe-server";
-import type { Order, OrderTimeline } from "./types";
+import type { OrderTimeline, PublicOrder } from "./types";
 
 /**
- * Buyer-facing endpoints. These are public by design: the order reference is the
- * credential, which is why `confirm-satisfaction`, `dispute` and `verify-otp`
- * take no bearer token. Nothing here should ever be called with a session.
+ * Buyer-facing endpoints. These are public by design: the order number is the
+ * credential, which is why `verify-otp` and `dispute` take no bearer token.
+ * Nothing here should ever be called with a session.
+ *
+ * They return `PublicOrderDto`, not the full order — no buyer contact details, no
+ * Paystack/transfer/refund reference, no payment URL, no escrow account.
  */
 export class TrackApiError extends Error {
   readonly status: number;
@@ -23,25 +26,33 @@ export class TrackApiError extends Error {
   }
 }
 
+/**
+ * Buyer-facing copy.
+ *
+ * The API's `409`s ("Order is Delivered, OTP not expected.", "Cannot dispute
+ * from status AwaitingPayment.") describe the internal state machine, and each
+ * one means the gate in `order-status.ts` let a button through that should not
+ * have been rendered. Passing that string to a buyer leaks the machine and
+ * invites a support ticket, so `409` gets its own plain-English message and the
+ * raw text is never surfaced. Same reasoning for a wrong OTP: `400` there is a
+ * bad guess, not a bad order.
+ */
 function messageFor(status: number, fallback?: string | null) {
-  // The three guest POST endpoints currently answer
-  // {"Success":false,"Message":"Validation failed.","Errors":["'Order Id' must not be empty."]}
-  // even when the path carries a well-formed id, so the route parameter is not
-  // being bound server-side. Say that plainly rather than show the raw text.
-  if (fallback && /order id' must not be empty/i.test(fallback)) {
-    return "The InstaSafe API did not accept this action because the order id did not reach it. That looks like a server-side issue on this endpoint — try again shortly or contact the vendor.";
-  }
-
   switch (status) {
     case 404:
-      return "We could not find an order with that reference. Check the link your vendor sent you.";
+      return "We could not find an order with that number. Check the link your vendor sent you.";
     case 400:
+      // A driver-assigned dispatch order reaching verify-otp is a real, expected
+      // case, and the API's wording is already buyer-safe — keep it.
+      if (fallback && /dispatcher|driver portal/i.test(fallback)) {
+        return fallback.trim();
+      }
       return fallback?.trim() || "That did not work. Check the details and try again.";
     case 401:
     case 403:
       return fallback?.trim() || "This order cannot be changed from here.";
     case 409:
-      return fallback?.trim() || "This order is not in a state that allows that.";
+      return "This order has already moved on, so that action is closed. Reload the page to see where it stands now.";
     default:
       return fallback?.trim() || "The InstaSafe service could not complete that request.";
   }
@@ -76,7 +87,7 @@ async function call<T>(
 }
 
 export async function getOrderByReference(reference: string) {
-  return call<Order>(`/api/orders/by-reference/${encodeURIComponent(reference)}`);
+  return call<PublicOrder>(`/api/orders/by-reference/${encodeURIComponent(reference)}`);
 }
 
 export async function getTimelineByReference(reference: string) {
@@ -85,29 +96,20 @@ export async function getTimelineByReference(reference: string) {
   );
 }
 
-/** Digital goods: the buyer releases their own funds immediately. */
-export async function confirmSatisfaction(orderId: string) {
-  return call<Order>(`/api/orders/${encodeURIComponent(orderId)}/confirm-satisfaction`, {
-    method: "POST",
-    body: {},
-  });
-}
-
 /** Freezes the funds while it is sorted out. Allowed while Held or Delivered. */
 export async function raiseDispute(orderId: string, reason: string) {
-  return call<Order>(`/api/orders/${encodeURIComponent(orderId)}/dispute`, {
+  return call<PublicOrder>(`/api/orders/${encodeURIComponent(orderId)}/dispute`, {
     method: "POST",
     body: { reason },
   });
 }
 
 /**
- * Legacy / rider-less path: releases digital orders and dispatch orders that have
- * no assigned driver. Orders with a driver must be confirmed by the rider in the
- * dispatch portal instead.
+ * The buyer's release action, for a **self-delivery** order that is still `Held`.
+ * A Dispatch order is released by its rider in the driver portal.
  */
 export async function verifyOrderOtp(orderId: string, otp: string) {
-  return call<Order>(`/api/orders/${encodeURIComponent(orderId)}/verify-otp`, {
+  return call<PublicOrder>(`/api/orders/${encodeURIComponent(orderId)}/verify-otp`, {
     method: "POST",
     body: { otp },
   });

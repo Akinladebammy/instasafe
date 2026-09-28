@@ -68,8 +68,8 @@ export async function requestToInstaSafe<T>(
 /**
  * The API mixes serialisers. Most endpoints answer with camelCase
  * (`success`/`message`/`data`/`errors`) or ASP.NET problem+json, but the guest
- * order endpoints (`confirm-satisfaction`, `dispute`, `verify-otp`) answer with
- * PascalCase (`Success`/`Message`/`Data`/`Errors`).
+ * order endpoints (`verify-otp`, `dispute`) answer with PascalCase
+ * (`Success`/`Message`/`Data`/`Errors`).
  *
  * Without this, a PascalCase `{"Success": false}` would parse to `success:
  * undefined` and `isSuccessful` would read it as a success on a 200 response.

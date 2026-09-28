@@ -180,10 +180,15 @@ export async function getVendor(token: string | null | undefined, id: string) {
 
 export async function listAdminOrders(
   token: string | null | undefined,
-  options: { status?: string; page?: number; pageSize?: number } = {},
+  options: { status?: string; q?: string; page?: number; pageSize?: number } = {},
 ) {
   return callList<Order>(
-    `/api/admin/orders${query({ status: options.status, page: options.page ?? 1, pageSize: options.pageSize ?? 25 })}`,
+    `/api/admin/orders${query({
+      status: options.status,
+      q: options.q,
+      page: options.page ?? 1,
+      pageSize: options.pageSize ?? 25,
+    })}`,
     { token: requireToken(token) },
   );
 }
@@ -331,6 +336,27 @@ export async function adminResolveDispute(
     token: requireToken(token),
     method: "POST",
     body: { resolution },
+  });
+}
+
+/**
+ * Re-runs the vendor payout for an order already marked `Released` whose transfer
+ * never completed (no `transferReference`).
+ *
+ * The two failure messages are NOT interchangeable, so they are not collapsed
+ * into one generic error:
+ *   - "Paystack rejected the transfer" — nothing was sent, safe to retry once
+ *     the balance or recipient is fixed.
+ *   - "outcome is unknown" — the transfer may have gone through; check Paystack
+ *     for `InstaSafe payout {orderId}` before retrying or risk a double payment.
+ */
+export async function adminRetryPayout(
+  token: string | null | undefined,
+  id: string,
+) {
+  return call<Order>(`/api/admin/orders/${encodeURIComponent(id)}/retry-payout`, {
+    token: requireToken(token),
+    method: "POST",
   });
 }
 

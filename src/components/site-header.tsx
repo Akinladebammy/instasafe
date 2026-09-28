@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { List, Package, X } from "@phosphor-icons/react";
+import Link from "next/link";
 import { type MouseEvent, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 
@@ -87,14 +88,14 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <a
+          <Link
             href="/track"
             onClick={(event) => navigateToSection(event, "/track")}
             className="mr-1 hidden min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus min-[900px]:inline-flex"
           >
             <Package size={17} aria-hidden="true" />
             Track order
-          </a>
+          </Link>
 
           <div className="hidden min-[900px]:flex min-[900px]:flex-col min-[900px]:items-stretch min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:gap-2">
             <a

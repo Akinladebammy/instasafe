@@ -15,7 +15,7 @@ export type OrderStatusKey =
   | "Disputed"
   | "Cancelled";
 
-export type FulfillmentKey = "Dispatch" | "Digital";
+export type FulfillmentKey = "Dispatch" | "SelfDelivery";
 
 /**
  * `Delivered` was appended to the enum after the original set shipped, which is
@@ -57,9 +57,14 @@ const STATUS_TONE: Record<
   Cancelled: "neutral",
 };
 
+/**
+ * Fulfilment is a NUMBER the vendor picks, and the enum has a deliberate gap:
+ * `1` (Digital) is disabled server-side and answers `400
+ * fulfillment.unsupported`, so no new order can ever be Digital.
+ */
 const FULFILLMENT_BY_NUMBER: Record<number, FulfillmentKey> = {
   0: "Dispatch",
-  1: "Digital",
+  2: "SelfDelivery",
 };
 
 const FALLBACK_STATUS = "Draft";
@@ -84,9 +89,15 @@ export function toStatusKey(value: unknown): OrderStatusKey {
 export function toFulfillmentKey(value: unknown): FulfillmentKey {
   if (typeof value === "number") return FULFILLMENT_BY_NUMBER[value] ?? "Dispatch";
   if (typeof value === "string") {
-    if (value.toLowerCase() === "digital") return "Digital";
-    if (value.toLowerCase() === "dispatch") return "Dispatch";
+    const needle = value.trim().toLowerCase().replace(/[\s_-]/g, "");
+    if (needle === "selfdelivery") return "SelfDelivery";
+    if (needle === "dispatch") return "Dispatch";
+    if (/^\d+$/.test(needle)) {
+      return FULFILLMENT_BY_NUMBER[Number(needle)] ?? "Dispatch";
+    }
   }
+  // A `1` from a pre-migration row still means "no rider hands this over", which
+  // is the self-delivery path today. Do not call it Digital — that flow is gone.
   return "Dispatch";
 }
 
@@ -124,42 +135,56 @@ export function canRequestBankTransfer(status: OrderStatusKey) {
   return status === "AwaitingPayment" || status === "Draft";
 }
 
-/** Digital goods can be released instantly by the buyer confirming. */
-export function isDigitalFulfilment(fulfillment: FulfillmentKey) {
-  return fulfillment === "Digital";
+/** The vendor hands it over in person; no rider is involved. */
+export function isSelfDelivery(fulfillment: FulfillmentKey) {
+  return fulfillment === "SelfDelivery";
+}
+
+export function fulfillmentLabel(fulfillment: FulfillmentKey) {
+  return fulfillment === "SelfDelivery" ? "Vendor delivery" : "Rider delivery";
 }
 
 /* ------------------------------------------------- buyer-facing permissions */
 
 /**
- * `confirm-satisfaction` is for digital goods. There is no parcel to deliver, so
- * the order sits in Held until the buyer releases it themselves.
+ * `confirm-satisfaction` was Digital-only and Digital is now disabled server-side
+ * (`400 fulfillment.unsupported`), so the endpoint can never succeed on a new
+ * order. It is deliberately not implemented: the buyer's one release action is
+ * `verify-otp`.
+ *
+ * A dispute can only freeze money that is still in escrow.
  */
-export function canConfirmSatisfaction(
-  status: OrderStatusKey,
-  fulfillment: FulfillmentKey,
-) {
-  return isDigitalFulfilment(fulfillment) && (status === "Held" || status === "Delivered");
-}
-
-/** A dispute can only freeze money that is still in escrow. */
 export function canRaiseDispute(status: OrderStatusKey) {
   return status === "Held" || status === "Delivered";
 }
 
 /**
- * `verify-otp` is the legacy / rider-less path. The API guide is explicit that
- * orders with an assigned driver must be confirmed by the rider instead, so we
- * hide the box rather than letting the buyer hit a rejection.
+ * `verify-otp` is the buyer's release action, and only for a self-delivery order
+ * that is still `Held`:
+ *
+ * - `Held` only. `Delivered` is already inside the 24h inspection window, where
+ *   the correct action is a dispute or nothing — the API answers `409 "Order is
+ *   <Status>, OTP not expected."`.
+ * - Self-delivery only. A Dispatch order is released by its rider in the driver
+ *   portal, so asking the buyer for their own code on one always fails with
+ *   `400 "This order has an assigned dispatcher…"`.
+ *
+ * `fulfillment` alone decides this. `driverPhone` is not on `PublicOrderDto`, and
+ * no longer needs to be — that is precisely why fulfilment became explicit.
  */
 export function canVerifyOtp(
   status: OrderStatusKey,
   fulfillment: FulfillmentKey,
-  driverPhone: string | null | undefined,
 ) {
-  if (status !== "Held" && status !== "Delivered") return false;
-  if (isDigitalFulfilment(fulfillment)) return true;
-  return !driverPhone;
+  return status === "Held" && isSelfDelivery(fulfillment);
+}
+
+/** A `Held` Dispatch order is waiting on its rider, not on the buyer. */
+export function isAwaitingRider(
+  status: OrderStatusKey,
+  fulfillment: FulfillmentKey,
+) {
+  return status === "Held" && !isSelfDelivery(fulfillment);
 }
 
 /** Riders only ever see Held (to confirm) and Delivered (already handed over). */

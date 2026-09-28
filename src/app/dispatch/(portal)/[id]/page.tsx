@@ -5,11 +5,11 @@ import { notFound, redirect } from "next/navigation";
 
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { DeliveryConfirm } from "@/components/dispatch/delivery-confirm";
-import { DataRow, SectionCard, StatTile } from "@/components/dashboard/parts";
+import { DataRow, Money, SectionCard, StatTile } from "@/components/dashboard/parts";
 import { StatusPill, Tag } from "@/components/dashboard/status-pill";
 import { formatCountdown, formatDateTime, formatPhone } from "@/lib/money";
 import { isRiderActionable, isRiderCompleted } from "@/lib/order-status";
-import { decodeOrder, orderNumber } from "@/lib/types";
+import { decodeDispatchOrder, orderNumber } from "@/lib/types";
 import {
   DispatchApiError,
   getDispatchToken,
@@ -45,7 +45,7 @@ export default async function DispatchOrderPage({
   const raw = result.orders.find((entry) => entry.id === id);
   if (!raw) notFound();
 
-  const order = decodeOrder(raw);
+  const order = decodeDispatchOrder(raw);
   const items = order.items ?? [];
   const actionable = isRiderActionable(order.statusKey);
   const completed = isRiderCompleted(order.statusKey);
@@ -74,16 +74,17 @@ export default async function DispatchOrderPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill status={order.statusKey} />
-            <Tag>{order.fulfillmentKey === "Digital" ? "Digital" : "Dispatch"}</Tag>
+            <Tag>Rider delivery</Tag>
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="Goods value"
-          value={`₦${((order.amountKobo ?? 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          hint="What you are handing over"
+          label="Your fee"
+          value={<Money kobo={order.deliveryFeeKobo} />}
+          hint="Paid by the backend the moment you confirm."
+          tone="good"
         />
         <StatTile
           label="Buyer phone"
@@ -170,27 +171,12 @@ export default async function DispatchOrderPage({
               <DataRow label="Order number">
                 <span className="font-mono">{orderNumber(order)}</span>
               </DataRow>
-              {order.paystackReference ? (
-                <DataRow label="Payment ref">
-                  <span className="font-mono break-all">{order.paystackReference}</span>
-                </DataRow>
-              ) : null}
-              <DataRow label="Vendor number">
-                <span className="font-mono">{formatPhone(order.vendorPhone)}</span>
+              <DataRow label="Your fee">
+                <Money kobo={order.deliveryFeeKobo} />
               </DataRow>
-              <DataRow label="Rider number">
+              <DataRow label="Your number">
                 <span className="font-mono">{formatPhone(order.driverPhone)}</span>
               </DataRow>
-              {order.driverTransferReference ? (
-                <DataRow label="Rider transfer">
-                  <span className="font-mono break-all">
-                    {order.driverTransferReference}
-                  </span>
-                </DataRow>
-              ) : null}
-              {order.heldAt ? (
-                <DataRow label="Funds held">{formatDateTime(order.heldAt)}</DataRow>
-              ) : null}
               {order.deliveredAt ? (
                 <DataRow label="Delivered">{formatDateTime(order.deliveredAt)}</DataRow>
               ) : null}

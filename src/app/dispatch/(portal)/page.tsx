@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 
 import { Money, SectionCard, StatTile } from "@/components/dashboard/parts";
 import { StatusPill } from "@/components/dashboard/status-pill";
-import { formatDateTime, formatPhone, koboToCompactNaira, pluralize } from "@/lib/money";
+import { formatDateTime, formatPhone, pluralize } from "@/lib/money";
 import { isRiderActionable, isRiderCompleted } from "@/lib/order-status";
-import { decodeOrders, orderNumber } from "@/lib/types";
+import { decodeDispatchOrders, orderNumber } from "@/lib/types";
 import { DispatchApiError, getDispatchToken, listAssigned } from "@/lib/dispatch-api";
 
 export const metadata: Metadata = {
@@ -44,15 +44,16 @@ export default async function DispatchHome({
     );
   }
 
-  const orders = decodeOrders(result.orders);
+  const orders = decodeDispatchOrders(result.orders);
   const awaiting = orders.filter((order) => isRiderActionable(order.statusKey));
   const completed = orders.filter((order) => isRiderCompleted(order.statusKey));
   const showCompleted = params.status !== "awaiting";
 
   const visible = showCompleted ? orders : awaiting;
-  // Goods value for completed runs — the rider fee itself is not exposed on the
-  // OrderDto, so we deliberately do not imply a payout amount here.
-  const completedValue = completed.reduce((sum, o) => sum + (o.amountKobo ?? 0), 0);
+  // `DispatchOrderDto` deliberately has no `amountKobo` — a rider never handles
+  // the order value, and `deliveryFeeKobo` is their own payout. So the only
+  // money this screen quotes is what they actually earned.
+  const completedFee = completed.reduce((sum, o) => sum + (o.deliveryFeeKobo ?? 0), 0);
 
   return (
     <div className="space-y-8">
@@ -80,9 +81,10 @@ export default async function DispatchHome({
           tone={completed.length ? "good" : "neutral"}
         />
         <StatTile
-          label="Goods value confirmed"
-          value={<Money kobo={completedValue} compact />}
-          hint="What you handed over"
+          label="Fees earned"
+          value={<Money kobo={completedFee} compact />}
+          hint="Paid on each confirmed drop"
+          tone="good"
         />
       </div>
 
@@ -152,14 +154,18 @@ export default async function DispatchHome({
                 </div>
                 <div>
                   <p className="text-xs font-semibold tracking-[0.14em] text-ink-muted uppercase">
-                    Order
+                    Your fee
                   </p>
-                  <p className="mt-1.5 text-sm text-ink">
-                    <Money kobo={order.amountKobo} /> goods
-                    {order.deliveryFeeKobo ? ` + ${koboToCompactNaira(order.deliveryFeeKobo)} delivery` : ""}
+                  <p className="mt-1.5 text-sm text-semibold text-ink">
+                    <Money kobo={order.deliveryFeeKobo} />
                   </p>
                   <p className="mt-1 text-xs text-ink-muted">
-                    {formatDateTime(order.heldAt ?? order.deliveredAt)}
+                    {pluralize(order.items?.length ?? 0, "item")} ·{" "}
+                    {orderNumber(order)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {isRiderCompleted(order.statusKey) ? "Confirmed" : "Held until you confirm"}{" "}
+                    {order.deliveredAt ? formatDateTime(order.deliveredAt) : ""}
                   </p>
                 </div>
               </div>

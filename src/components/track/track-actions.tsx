@@ -1,15 +1,15 @@
 "use client";
 
-import { CheckCircle, HandsClapping, WarningCircle } from "@phosphor-icons/react";
+import { CheckCircle, Truck, WarningCircle } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 
 import { trackAction, type TrackResult } from "@/app/track/actions";
 import { SubmitButton } from "@/components/dashboard/submit-button";
 import { SectionCard } from "@/components/dashboard/parts";
 import {
-  canConfirmSatisfaction,
   canRaiseDispute,
   canVerifyOtp,
+  isAwaitingRider,
   type FulfillmentKey,
   type OrderStatusKey,
 } from "@/lib/order-status";
@@ -22,22 +22,23 @@ const inputClass =
  * Buyer-side actions.
  *
  * Every form posts to one action, so the result lives in this component and
- * survives the status change that a successful action causes. Which panels
- * appear follows the API guide: satisfaction and dispute only while money is in
- * escrow, and the OTP box only when no rider is assigned.
+ * survives the status change that a successful action causes.
+ *
+ * There is exactly **one** release action, `verify-otp`, and it appears only for
+ * a self-delivery order that is still `Held`. The gates in `order-status.ts`
+ * mirror the API's state table: anything rendered outside them is a guaranteed
+ * `409` on click.
  */
 export function TrackActions({
   orderId,
   reference,
   status,
   fulfillment,
-  driverPhone,
 }: {
   orderId: string;
   reference: string;
   status: OrderStatusKey;
   fulfillment: FulfillmentKey;
-  driverPhone: string | null;
 }) {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [state, formAction] = useActionState<TrackResult | null, FormData>(
@@ -45,9 +46,9 @@ export function TrackActions({
     null,
   );
 
-  const canSatisfy = canConfirmSatisfaction(status, fulfillment);
+  const canOtp = canVerifyOtp(status, fulfillment);
   const canDispute = canRaiseDispute(status);
-  const canOtp = canVerifyOtp(status, fulfillment, driverPhone);
+  const waitingOnRider = isAwaitingRider(status, fulfillment);
   const settled =
     status === "Released" || status === "Refunded" || status === "Cancelled";
 
@@ -58,33 +59,10 @@ export function TrackActions({
 
   return (
     <>
-      {canSatisfy ? (
-        <SectionCard
-          title="Everything as expected?"
-          description="Releases your payment to the vendor straight away."
-        >
-          <div className="space-y-4 px-5 py-5">
-            <p className="text-sm leading-6 text-ink-muted">
-              This is a digital order, so there is no delivery to wait for. Only
-              confirm if you have what you paid for.
-            </p>
-            <form action={formAction} className="space-y-3">
-              <input type="hidden" name="intent" value="satisfy" />
-              <input type="hidden" name="orderId" value={hidden.orderId} />
-              <input type="hidden" name="reference" value={hidden.reference} />
-              <SubmitButton pendingLabel="Releasing…" className="w-full">
-                <HandsClapping size={17} aria-hidden="true" />
-                Yes, release my payment
-              </SubmitButton>
-            </form>
-          </div>
-        </SectionCard>
-      ) : null}
-
       {canOtp ? (
         <SectionCard
           title="Got a code?"
-          description="For digital orders, or deliveries with no rider assigned."
+          description="Enter the code from your payment message to release your payment."
         >
           <form action={formAction} className="space-y-4 px-5 py-5">
             <input type="hidden" name="intent" value="otp" />
@@ -111,6 +89,22 @@ export function TrackActions({
               Verify code
             </SubmitButton>
           </form>
+        </SectionCard>
+      ) : null}
+
+      {waitingOnRider ? (
+        <SectionCard
+          title="A rider is handling this"
+          description="Nothing for you to do until it arrives."
+        >
+          <div className="flex items-start gap-3 px-5 py-5">
+            <Truck size={20} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+            <p className="text-sm leading-6 text-ink-muted">
+              Your payment is held safely. When the rider hands the order over,
+              they confirm it and you get a short window to check everything
+              arrived before the money is released.
+            </p>
+          </div>
         </SectionCard>
       ) : null}
 

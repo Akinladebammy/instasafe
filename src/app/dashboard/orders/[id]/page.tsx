@@ -25,7 +25,8 @@ import {
   canRefund,
   canRequestBankTransfer,
   canResolveDispute,
-  isDigitalFulfilment,
+  fulfillmentLabel,
+  isSelfDelivery,
 } from "@/lib/order-status";
 import { decodeOrder, orderNumber } from "@/lib/types";
 import { trackUrlFor } from "@/lib/url";
@@ -116,9 +117,7 @@ export default async function OrderDetailPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill status={order.statusKey} />
-            <Tag>
-              {isDigitalFulfilment(order.fulfillmentKey) ? "Digital" : "Dispatch"}
-            </Tag>
+            <Tag>{fulfillmentLabel(order.fulfillmentKey)}</Tag>
           </div>
         </div>
       </div>
@@ -137,13 +136,13 @@ export default async function OrderDetailPage({
         <StatTile
           label="Delivery"
           value={
-            isDigitalFulfilment(order.fulfillmentKey) ? "Digital delivery" : "Rider assigned"
+            isSelfDelivery(order.fulfillmentKey) ? "You deliver it" : "Rider assigned"
           }
           hint={
             order.driverPhone
               ? `Rider ${formatPhone(order.driverPhone)}`
-              : isDigitalFulfilment(order.fulfillmentKey)
-                ? "Buyer gets a link, no parcel"
+              : isSelfDelivery(order.fulfillmentKey)
+                ? "Buyer releases it from their tracking page"
                 : "No rider assigned yet"
           }
         />
