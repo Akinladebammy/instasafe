@@ -7,6 +7,7 @@ import { createOrderAction, type ActionResult } from "@/app/dashboard/actions";
 import { SubmitButton } from "@/components/dashboard/submit-button";
 import type { Bank } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { PhoneInput } from "@/components/dashboard/phone-input";
 
 type Item = { description: string; quantity: string; unitPrice: string };
 
@@ -72,18 +73,8 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
               className={inputClass}
             />
           </Field>
-          <Field label="Buyer phone" htmlFor="customerPhone" hint="Nigerian mobile.">
-            <input
-              id="customerPhone"
-              name="customerPhone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              maxLength={24}
-              required
-              placeholder="0801 234 5678…"
-              className={cn(inputClass, "font-mono")}
-            />
+          <Field label="Buyer phone" htmlFor="customerPhone" hint="Nigerian mobile. Type the rest after +234.">
+            <PhoneInput id="customerPhone" name="customerPhone" required placeholder="7031602720" />
           </Field>
           <Field
             label="Buyer email"
@@ -296,19 +287,9 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
               <Field
                 label="Rider phone"
                 htmlFor="driverPhone"
-                hint="Their WhatsApp number."
+                hint="Their WhatsApp number. Type the rest after +234."
               >
-                <input
-                  id="driverPhone"
-                  name="driverPhone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="off"
-                  required
-                  maxLength={24}
-                  placeholder="0805 555 6666…"
-                  className={cn(inputClass, "font-mono")}
-                />
+                <PhoneInput id="driverPhone" name="driverPhone" required autoComplete="off" placeholder="8055556666" />
               </Field>
               <Field label="Rider account" htmlFor="driverAccountNumber">
                 <input
