@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/dashboard/submit-button";
 import type { Bank } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { PhoneInput } from "@/components/dashboard/phone-input";
+import { RiderBankFields } from "@/components/dashboard/rider-bank-fields";
 
 type Item = { description: string; quantity: string; unitPrice: string };
 
@@ -291,49 +292,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
               >
                 <PhoneInput id="driverPhone" name="driverPhone" required autoComplete="off" placeholder="8055556666" />
               </Field>
-              <Field label="Rider account" htmlFor="driverAccountNumber">
-                <input
-                  id="driverAccountNumber"
-                  name="driverAccountNumber"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  required
-                  maxLength={20}
-                  placeholder="0123456789"
-                  className={cn(inputClass, "font-mono")}
-                />
-              </Field>
-              <Field label="Rider bank" htmlFor="driverBankCode">
-                {banks.length > 0 ? (
-                  <select
-                    id="driverBankCode"
-                    name="driverBankCode"
-                    required
-                    defaultValue=""
-                    className={cn(inputClass, "appearance-none")}
-                  >
-                    <option value="">Choose a bank…</option>
-                    {banks.map((bank) => (
-                      <option key={bank.code} value={bank.code}>
-                        {bank.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    id="driverBankCode"
-                    name="driverBankCode"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    required
-                    maxLength={12}
-                    placeholder="058"
-                    className={cn(inputClass, "font-mono")}
-                  />
-                )}
-              </Field>
+              <RiderBankFields banks={banks} />
             </div>
           ) : null}
         </div>
