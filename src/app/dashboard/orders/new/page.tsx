@@ -16,10 +16,9 @@ export default async function NewOrderPage() {
   const token = await getVendorToken();
   if (!token) redirect("/login");
 
-  // Short list of banks that can receive a dedicated transfer account, used for
-  // the optional rider payout details. Falls back to empty if unavailable so the
-  // form stays usable with manual codes.
-  const banks = await listBanks({ transferOnly: true }).catch(() => []);
+  // Full bank list for the rider payout dropdown. Falls back to empty if
+  // unavailable so the form stays usable with manual codes.
+  const banks = await listBanks().catch(() => []);
 
   return (
     <div className="space-y-8">

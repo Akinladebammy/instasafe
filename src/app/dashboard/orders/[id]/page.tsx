@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Bank, LinkSimple, Truck } from "@phosphor-icons/react/dist/ssr";
 import { notFound, redirect } from "next/navigation";
 
-import { refundOrderAction, requestBankTransferAction, resolveDisputeAction } from "@/app/dashboard/actions";
+import { refundOrderAction, resolveDisputeAction } from "@/app/dashboard/actions";
 import { ActionForm } from "@/components/dashboard/action-form";
 import { ConfirmSubmit } from "@/components/dashboard/confirm-submit";
 import { CopyButton } from "@/components/dashboard/copy-button";
@@ -23,7 +23,6 @@ import {
 } from "@/lib/money";
 import {
   canRefund,
-  canRequestBankTransfer,
   canResolveDispute,
   fulfillmentLabel,
   isSelfDelivery,
@@ -267,28 +266,6 @@ export default async function OrderDetailPage({
         <div className="space-y-6">
           <SectionCard title="Actions">
             <div className="space-y-5 px-5 py-5">
-              {canRequestBankTransfer(order.statusKey) ? (
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">
-                      Bank-transfer details
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-ink-muted">
-                      Generates a dedicated account for this order. The buyer
-                      transfers the exact total; confirmation arrives by webhook.
-                    </p>
-                  </div>
-                  <ActionForm
-                    action={requestBankTransferAction}
-                    hidden={{ orderId: order.id }}
-                    submitLabel="Get Transfer Details"
-                    pendingLabel="Requesting…"
-                    variant="secondary"
-                    buttonClassName="w-full"
-                    successTone="info"
-                  />
-                </div>
-              ) : null}
 
               {canRefund(order.statusKey) ? (
                 <div className="space-y-3 border-t border-line pt-5">
