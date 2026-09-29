@@ -279,21 +279,7 @@ export function CreateOrderForm({ banks }: { banks: Bank[] }) {
           </Field>
 
           {fulfillment === "0" ? (
-            <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-3">
-              <p className="text-xs leading-5 text-ink-muted sm:col-span-3">
-                Required on a rider order. Riders hold no saved payout details, so
-                all three go on this order — the backend pays the account below the
-                moment the rider confirms the handover.
-              </p>
-              <Field
-                label="Rider phone"
-                htmlFor="driverPhone"
-                hint="Their WhatsApp number. Type the rest after +234."
-              >
-                <PhoneInput id="driverPhone" name="driverPhone" required autoComplete="off" placeholder="8055556666" />
-              </Field>
-              <RiderBankFields banks={banks} />
-            </div>
+            <RiderBankFields banks={banks} />
           ) : null}
         </div>
       </section>
