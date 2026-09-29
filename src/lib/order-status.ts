@@ -127,13 +127,6 @@ export function canResolveDispute(status: OrderStatusKey) {
   return status === "Disputed";
 }
 
-/**
- * Bank-transfer details can only be requested while payment is still pending.
- * Released orders answer 409.
- */
-export function canRequestBankTransfer(status: OrderStatusKey) {
-  return status === "AwaitingPayment" || status === "Draft";
-}
 
 /** The vendor hands it over in person; no rider is involved. */
 export function isSelfDelivery(fulfillment: FulfillmentKey) {

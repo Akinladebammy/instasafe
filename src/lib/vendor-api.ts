@@ -258,23 +258,10 @@ export async function resolveDispute(
   });
 }
 
-export async function requestBankTransfer(
-  token: string | null | undefined,
-  id: string,
-  preferredBank?: string,
-) {
-  return call<Order>(`/api/orders/${encodeURIComponent(id)}/request-bank-transfer`, {
-    token: requireToken(token),
-    method: "POST",
-    body: preferredBank ? { preferredBank } : {},
-  });
-}
-
 /* ------------------------------------------------------------------- banks */
 
-export async function listBanks(options: { transferOnly?: boolean } = {}) {
-  const query = options.transferOnly ? "?transferOnly=true" : "";
-  const data = await call<Bank[]>(`/api/payments/banks${query}`);
+export async function listBanks() {
+  const data = await call<Bank[]>(`/api/payments/banks`);
   return dedupeBanks(data);
 }
 

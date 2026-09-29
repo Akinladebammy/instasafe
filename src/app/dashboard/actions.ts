@@ -10,7 +10,6 @@ import {
   getSelfVendor,
   getVendorToken,
   refundOrder,
-  requestBankTransfer,
   resolveDispute,
   setVendorActive,
   updateVendorPhone,
@@ -322,29 +321,5 @@ export async function resolveDisputeAction(
   return {
     ok: true,
     message: resolution === "release" ? "Funds released to you." : "Buyer refunded.",
-  };
-}
-
-export async function requestBankTransferAction(
-  _prev: ActionResult | null,
-  formData: FormData,
-): Promise<ActionResult> {
-  const token = await getVendorToken();
-  if (!token) redirect("/login");
-
-  const orderId = String(formData.get("orderId") ?? "").trim();
-  if (!orderId) return { ok: false, message: "Missing order reference." };
-  const preferredBank = String(formData.get("preferredBank") ?? "").trim();
-
-  try {
-    await requestBankTransfer(token, orderId, preferredBank || undefined);
-  } catch (error) {
-    return failure(error);
-  }
-
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  return {
-    ok: true,
-    message: "Dedicated account ready. Share it with the buyer for a bank transfer.",
   };
 }
