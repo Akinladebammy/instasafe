@@ -158,7 +158,7 @@ export function TrackView({
                 ))}
                 <li className="flex items-center justify-between gap-4 bg-surface-raised px-5 py-3.5">
                   <span className="text-sm font-semibold text-ink">Goods</span>
-                  <Money kobo={order.amountKobo} className="text-sm font-semibold text-ink" />
+                  <Money kobo={order.goodsKobo} className="text-sm font-semibold text-ink" />
                 </li>
                 {order.deliveryFeeKobo ? (
                   <li className="flex items-center justify-between gap-4 border-t border-line px-5 py-3.5">
