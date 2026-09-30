@@ -134,8 +134,10 @@ export type Bank = {
 export type DecodedOrder = Order & {
   statusKey: OrderStatusKey;
   fulfillmentKey: FulfillmentKey;
-  /** amount + delivery fee, in kobo. This is what the buyer pays. */
+  /** What the buyer paid, in kobo. `amountKobo` already includes the fee. */
   totalKobo: number;
+  /** Goods only: amount minus delivery fee, in kobo. Never negative. */
+  goodsKobo: number;
 };
 
 export function decodeOrder(order: Order): DecodedOrder {
@@ -145,7 +147,8 @@ export function decodeOrder(order: Order): DecodedOrder {
     ...order,
     statusKey: toStatusKey(order.status),
     fulfillmentKey: toFulfillmentKey(order.fulfillment),
-    totalKobo: amountKobo + deliveryFeeKobo,
+    totalKobo: amountKobo,
+    goodsKobo: Math.max(0, amountKobo - deliveryFeeKobo),
   };
 }
 
@@ -156,8 +159,10 @@ export function decodeOrders(orders: Order[] | null | undefined) {
 export type DecodedPublicOrder = PublicOrder & {
   statusKey: OrderStatusKey;
   fulfillmentKey: FulfillmentKey;
-  /** amount + delivery fee, in kobo. This is what the buyer pays. */
+  /** What the buyer paid, in kobo. `amountKobo` already includes the fee. */
   totalKobo: number;
+  /** Goods only: amount minus delivery fee, in kobo. Never negative. */
+  goodsKobo: number;
 };
 
 export function decodePublicOrder(order: PublicOrder): DecodedPublicOrder {
@@ -167,7 +172,8 @@ export function decodePublicOrder(order: PublicOrder): DecodedPublicOrder {
     ...order,
     statusKey: toStatusKey(order.status),
     fulfillmentKey: toFulfillmentKey(order.fulfillment),
-    totalKobo: amountKobo + deliveryFeeKobo,
+    totalKobo: amountKobo,
+    goodsKobo: Math.max(0, amountKobo - deliveryFeeKobo),
   };
 }
 
