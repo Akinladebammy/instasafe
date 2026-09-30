@@ -1,4 +1,5 @@
 import { ArrowUp } from "@phosphor-icons/react/dist/ssr";
+import { botChatUrl } from "@/lib/whatsapp";
 import { BrandMark } from "@/components/brand-mark";
 
 const exploreLinks = [
@@ -16,6 +17,7 @@ const roleLinks = [
 ];
 
 export function SiteFooter() {
+  const liveUrl = botChatUrl();
   return (
     <footer className="bg-canvas py-12 sm:py-16">
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8 lg:px-10">
@@ -56,6 +58,18 @@ export function SiteFooter() {
                   </a>
                 </li>
               ))}
+              {liveUrl ? (
+                <li>
+                  <a
+                    href={liveUrl}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-sm text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    Chat with the bot
+                  </a>
+                </li>
+              ) : null}
             </ul>
           </nav>
           <div className="lg:col-span-2 lg:text-right">

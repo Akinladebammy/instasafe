@@ -2,8 +2,10 @@ import { ArrowDown, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { TransactionPreview } from "@/components/transaction-preview";
+import { botChatUrl } from "@/lib/whatsapp";
 
 export function Hero() {
+  const liveUrl = botChatUrl();
   return (
     <section id="top" className="relative overflow-hidden border-b border-line">
       <div aria-hidden="true" className="ledger-grid absolute inset-0 opacity-45" />
@@ -42,6 +44,19 @@ export function Hero() {
               <ArrowDown size={18} weight="bold" aria-hidden="true" />
             </a>
           </div>
+          {liveUrl ? (
+            <p className="mt-4 text-sm text-ink-muted">
+              Already selling with us?{" "}
+              <a
+                href={liveUrl}
+                target="_blank"
+                rel="noopener"
+                className="font-semibold text-brand underline decoration-blue-spruce-300 underline-offset-4 transition-colors hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                Continue with the bot on WhatsApp
+              </a>
+            </p>
+          ) : null}
 
           {/* Buyers reach the site from a payment message, often long after the
               vendor shared it. Keep tracking one click from the hero. */}

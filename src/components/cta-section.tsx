@@ -1,9 +1,11 @@
 import { ArrowRight, ChatCircleDots, CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { botChatUrl } from "@/lib/whatsapp";
 import { Reveal } from "@/components/reveal";
 
 // Adapted from the 21st.dev CTA Section by shadcndesign.
 // Reoriented from a generic centered block into an asymmetric product close.
 export function CtaSection() {
+  const liveUrl = botChatUrl();
   return (
     <section id="start" className="bg-blue-spruce-800 py-20 text-blue-spruce-50 sm:py-24">
       <div className="mx-auto grid max-w-[1400px] gap-12 px-5 sm:px-8 lg:grid-cols-12 lg:items-center lg:gap-16 lg:px-10">
@@ -22,6 +24,17 @@ export function CtaSection() {
             Try the flow
             <ArrowRight size={18} weight="bold" aria-hidden="true" />
           </a>
+          {liveUrl ? (
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener"
+              className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-spruce-600 px-5 py-3 text-sm font-semibold text-blue-spruce-50 transition-colors hover:bg-blue-spruce-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-spruce-200 sm:ml-3"
+            >
+              Continue on WhatsApp
+              <ArrowRight size={18} weight="bold" aria-hidden="true" />
+            </a>
+          ) : null}
         </Reveal>
 
         <Reveal className="lg:col-span-4" delay={0.12} distance={28}>
