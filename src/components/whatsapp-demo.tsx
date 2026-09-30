@@ -11,7 +11,7 @@ import {
 import { useState } from "react";
 import { Reveal } from "@/components/reveal";
 import { cn } from "@/lib/cn";
-
+import { botChatUrl } from "@/lib/whatsapp";
 type DemoState = "message" | "parsed" | "confirmed";
 
 const formattedAmount = new Intl.NumberFormat("en-NG", {
@@ -31,6 +31,7 @@ const orderDetails = [
 export function WhatsappDemo() {
   const [demoState, setDemoState] = useState<DemoState>("message");
   const reduceMotion = useReducedMotion();
+  const liveUrl = botChatUrl();
 
   return (
     <section id="demo" className="scroll-mt-[88px] border-b border-line bg-canvas py-24 sm:py-28 lg:py-36">
@@ -53,6 +54,17 @@ export function WhatsappDemo() {
               move money.
             </p>
           </div>
+          {liveUrl ? (
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener"
+              className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-shamrock-400 px-5 py-3 text-sm font-semibold text-blue-spruce-950 transition-[transform,background-color] hover:bg-shamrock-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus active:translate-y-px"
+            >
+              Try it live on WhatsApp
+              <ArrowRight size={18} weight="bold" aria-hidden="true" />
+            </a>
+          ) : null}
         </Reveal>
 
         <Reveal className="lg:col-span-7 lg:pl-8" delay={0.1} distance={30}>
