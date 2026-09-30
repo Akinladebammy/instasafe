@@ -1,12 +1,13 @@
 /**
  * Vendor bot deep links. Single source of truth for the WhatsApp number so
- * a number change is one env edit, not four file edits.
+ * a number change is one line here, not four file edits.
  *
- * Set NEXT_PUBLIC_WHATSAPP_BOT_NUMBER to digits only, e.g. 2347079832962.
- * Every consumer renders nothing when it returns null - never a dead link.
+ * The vendor bot number, hardcoded. It is a public contact address (it
+ * appears verbatim in every wa.me link), so an env var bought nothing but
+ * a silent-invisible failure mode when unset at build time.
  */
 export function botChatUrl(prefill = "Hi"): string | null {
-  const digits = (process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER ?? "").replace(/\D/g, "");
+  const digits = "2347079832962";
   if (digits.length < 7 || digits.length > 15) return null;
   const text = prefill.trim();
   return text
